@@ -1,0 +1,7 @@
+.idea/
+bin/
+lib/
+scripts/
+static/imgs/
+/cropped.jpg
+/test.jpg
