@@ -1,0 +1,24 @@
+{
+  "lines": [
+    [[20, 20], [80, 20], [80, 80], [20, 80], [20, 20]],
+    [[50, 20], [50, 80]],
+    [[20, 50], [80, 50]]
+  ],
+  "signs": [{
+    "position": [50, 20, 1.57],
+    "sign": "straight"
+  },{
+    "position": [50, 50, 0],
+    "sign": "right"
+  },{
+    "position": [50, 80, 0],
+    "sign": "left"
+  },{
+    "position": [20, 50, 0],
+    "sign": "straight"
+  },{
+    "position": [80, 50, 0],
+    "sign": "straight"
+  }],
+  "startPoint": [20, 20, 0]
+}

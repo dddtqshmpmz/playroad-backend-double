@@ -6,6 +6,7 @@ import traceback
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_sockets import Sockets
 
 from engine import run
 
@@ -17,6 +18,9 @@ os.makedirs('./static/imgs')
 
 app = Flask(__name__)
 CORS(app)
+sockets = Sockets(app)
+
+ws_clients = {}
 
 
 @app.route('/')
@@ -30,7 +34,7 @@ def get_maps():
     for filename in os.listdir('./maps'):
         with open('./maps/' + filename) as f:
             maps.append({'name': filename, 'content': json.load(f)})
-    return jsonify(maps)
+    return jsonify(sorted(maps, key=lambda x: x['name']))
 
 
 @app.route('/evaluate', methods=['POST'])
@@ -42,6 +46,15 @@ def evaluate():
             f.write(req['code'])
         f = __import__('scripts.' + filename)
         script = getattr(f, filename)
+        pos = req['position']
+        pos = [x for x in pos]
+        if ws_clients.get(request.remote_addr) is not None and not ws_clients.get(request.remote_addr).closed:
+            msg = """{{
+              "Event": "update_pos",
+              "position": [{0},{1},{2}]
+            }}""".format(*pos)
+            ws = ws_clients[request.remote_addr]
+            ws.send(msg)
         return jsonify(run(script.image_to_speed, int(req['step']), req['position'], req['map'], script.log))
     except Exception:
         err = traceback.format_exc()
@@ -50,5 +63,16 @@ def evaluate():
         return jsonify({'Error': err})
 
 
+@sockets.route('/ws')
+def echo_socket(ws):
+    while not ws.closed:
+        ws_clients[request.remote_addr] = ws
+        message = ws.receive()
+
+
 if __name__ == '__main__':
-    app.run()
+    from gevent import pywsgi
+    from geventwebsocket.handler import WebSocketHandler
+
+    server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
+    server.serve_forever()

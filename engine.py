@@ -59,10 +59,8 @@ class Car:
             pos = sg["position"]
             dist = np.linalg.norm([x - pos[0], y - pos[1]])
             if dist < 5:
-                if 1.2*pi < (theta - pos[2])%twopi < 1.8*pi:
-                    sign = sg["sign"][1]
                 if 0.2*pi < (theta - pos[2])%twopi < 0.8*pi:
-                    sign = sg["sign"][0]
+                    sign = sg["sign"]
 
         # cropped = 255 - cropped
         sign_img = sign_imgs.get(sign)
@@ -83,7 +81,7 @@ def run(f, seconds, position, map, log):
         cv2.polylines(img, pts=np.int32([line]), isClosed=False, color=(255, 0, 0))
 
     car = Car(position, w, img)
-    coors = [car.position[:2]]
+    coors = []
 
     for i in range(seconds * car.freq_of_call):
         view = car.view(map["signs"])
