@@ -13,9 +13,12 @@ from flask_sockets import Sockets
 
 from engine import run
 
-# Delete history files before restarting app
-shutil.rmtree('./scripts/')
-os.makedirs('./scripts')
+try:
+    # Delete history files before restarting app
+    shutil.rmtree('./scripts/')
+    os.makedirs('./scripts')
+except:
+    pass
 
 app = Flask(__name__)
 CORS(app)
@@ -49,6 +52,7 @@ def reset():
         }}""".format(*req["position"])
         ws = ws_clients[request.remote_addr]
         ws.send(msg)
+    return "ok"
 
 
 @app.route('/evaluate', methods=['POST'])
