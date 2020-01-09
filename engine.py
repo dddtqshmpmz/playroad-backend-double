@@ -3,18 +3,21 @@ import cv2
 
 
 class Car:
-    def __init__(self, initial_pos, width_of_car):
+    def __init__(self, initial_pos, width_of_car = 6):
         self.position = initial_pos
         self.width_of_car = width_of_car
 
-        # Tha main program calls `image_to_speed()` once a second.
-        # And it is calculated by n steps. Within every single step,
-        # we suppose that the car's two wheels run separately for 1000/n ms.
+        # Tha main program calls `image_to_speed()` once per second.
+        # And it is calculated by n sub-steps. Within every single sub-step,
+        # we suppose that the car's two wheels run for 1000/n ms.
         self.freq_of_call = 1   # 1 call per second
         self.sub_steps_per_call = 10
         self.sub_step_duration = 1 / self.sub_steps_per_call  # unit: second
 
     def move(self, left, right):
+        """
+        :param left & right: car wheels' speed
+        """
         d_left = left * self.sub_step_duration
         d_right = right * self.sub_step_duration
         d_center = (d_left + d_right) / 2
@@ -27,15 +30,22 @@ class Car:
 
 
 def run(f, seconds, position, log, unity_view1, unity_view2):
-    # Suppose the width of our car is 6 pixel
-    w = 6
-    # We simply ignore the rest part of the car except its head.
-
-    car = Car(position, w)
-    pos = None
+    """
+    Engine entry.
+    :param f: students' image_to_speed function
+    :param seconds: time to run our car
+    :param position: the car is stateless, so every time when we need to calculate its new position, current position
+                     should be provided firstly.
+    :param log: a helper variable for students' debugging
+    :param unity_view1: bird view
+    :param unity_view2: in-car view
+    :return:
+    """
+    car = Car(position)
+    pos = [0, 0, 0]
 
     left, right = f(unity_view1, unity_view2)
-    # cv2.imwrite("/Users/zhouyuan/hi.jpg", unity_view2)
+    # cv2.imwrite("./in-car-view.jpg", unity_view2)
     for i in range(seconds * car.freq_of_call):
         for j in range(car.sub_steps_per_call):
             car.move(right, left)
