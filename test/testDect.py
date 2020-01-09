@@ -3,23 +3,19 @@ import numpy as np
 
 
 class detection():
-
     def __init__(self):
-        """
-        Init the parameters
-        """
-        self.H_low_thresh = 112
+        self.H_low_thresh = 110
         self.H_high_thresh = 125
         self.S_low_thresh = 120
-        self.V_low_thresh = 100
+        self.V_low_thresh = 90
+        self.aspect_ratio_thresh = 1.5
         self.use_h_only = 0
+        self.img_width = 640
+        self.img_height = 480
 
     def show_circles(self, im, circles):
         """
-        This function draws circles on the image im.
-        :param im: image, opencv format
-        :param circles, 2-d list which contains the positions and radiuses of circles
-               format: [[c_x,c_y,r],[c_x,c_y,r]...]
+        show the circles detected by hough transform
         """
         if len(circles) != 0:
             for i in range(0, len(circles)):
@@ -29,13 +25,7 @@ class detection():
 
     def show_rects(self, im, rects):
         """
-        This function draws rectangles on the image im.
-        :param im: image, opencv format
-        :param rects:rectangles, 2-d list or 1-d list which contain the positions of rectangles
-               for 2-d list
-               format: [[xmin,ymin,xmax,ymax],[xmin,ymin,xmax,ymax]...]
-               for 1-d list
-               format:[xmin,ymin,xmax,ymax]
+        show one or more than one rectangles
         """
         if len(rects) != 0:
             if type(rects[0]) == list:
@@ -44,25 +34,55 @@ class detection():
             else:
                 cv2.rectangle(im, (rects[0], rects[1]), (rects[2], rects[3]), (0, 0, 255), 2)
         cv2.imshow("rects", im)
-        cv2.waitKey(0)
+        cv2.waitKey(10)
+
+    def show_rects_id(self, im, rects):
+        """
+        show one or more than one rectangles
+        """
+        if len(rects) != 0:
+            if type(rects[0]) == list:
+                for i in range(0, len(rects)):
+                    cv2.rectangle(im, (rects[i][0], rects[i][1]), (rects[i][2], rects[i][3]), (0, 0, 255), 2)
+            else:
+                cv2.rectangle(im, (rects[0], rects[1]), (rects[2], rects[3]), (0, 0, 255), 2)
+        cv2.imshow("rects", im)
+        cv2.waitKey(10)
+
+    def draw_rects(self, im, rects):
+        """
+        draw rects on im
+        """
+        if len(rects) != 0:
+            if type(rects[0]) == list:
+                for i in range(0, len(rects)):
+                    cv2.rectangle(im, (rects[i][0], rects[i][1]), (rects[i][2], rects[i][3]), (0, 0, 255), 2)
+            else:
+                cv2.rectangle(im, (rects[0], rects[1]), (rects[2], rects[3]), (0, 0, 255), 2)
 
     def change_threshold(self, h_low, h_high):
+
         """
-        This function change the h thresholds for color segmentation which is used for extend experimrnt only.
-        :param h_low: the low threshold of H
-        :param h_high: the high threshold of H
+        change the h thresholds for color segmentation.
+        adopt the h for segmentation only, only can be used
+        for Signal lamp detection
         """
         self.H_low_thresh = h_low
         self.H_high_thresh = h_high
         self.use_h_only = 1
 
+    def change_threshold_all(self, h_low, h_high, s_low, v_low):
+        self.H_low_thresh = h_low
+        self.H_high_thresh = h_high
+        self.S_low_thresh = s_low
+        self.V_low_thresh = v_low
+        self.use_h_only = 0
+
     def seg_color(self, im):
         """
-        This function detects the sign by color segmentation.
-        :param im: image,opencv format
-        :return: the positions of the objects
-                2-d list, format:
-                [[xmin,ymin,xmax,ymax],[xmin,ymin,xmax,ymax]....]
+        input: image
+        output: the position of the sign
+                rects:[[xmin,ymin,xmax,ymax],[xmin,ymin,xmax,ymax]....]
         """
         gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -70,48 +90,54 @@ class detection():
         h = hsv[:, :, 0]
         s = hsv[:, :, 1]
         v = hsv[:, :, 2]
-
         if self.use_h_only == 0:
             label = (h > self.H_low_thresh) * (h < self.H_high_thresh) * (s > self.S_low_thresh) * (
-                    v > self.V_low_thresh)
+                        v > self.V_low_thresh)
         else:
             label = (h > self.H_low_thresh) * (h < self.H_high_thresh)
-
         gray = gray * label
         gray[label] = 255
+        # cv2.imshow("gray",gray)
+        # cv2.waitKey(0)
         element = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
         eroded = cv2.erode(gray, element)
         dilated = cv2.dilate(eroded, element)
         ret, thresh = cv2.threshold(dilated, 127, 255, cv2.THRESH_BINARY)
+        # cv2.imshow("thresh",thresh)
+        # cv2.waitKey(0)
         # for opencv3
-        # binary, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # binary,contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         # for opencv2
-        contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         rects = []
 
         for i in range(0, len(contours)):
             rect = cv2.boundingRect(contours[i])
             w = rect[2]
             h = rect[3]
-            if w > 15 and h > 15:
+            aspect_ratio = max(w, h) / (min(w, h) * 1.0)
+            if w > 10 and h > 10 and aspect_ratio < self.aspect_ratio_thresh:
                 rects.append([rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]])
         return rects
 
     def det_circle(self, img):
         """
-        This function detects the circles by hough transform.
-        :param img:image,opencv format
-        :return: the positions of the circles, a 2-d list
-                format: [[c_x-r,c_y-r,c_x+r,c_y+r],[c_x-r,c_y-r,c_x+r,c_y+r]....]
+        input: image
+        output: the position of the circle
+                circles:[[c_x-r,c_y-r,c_x+r,c_y+r],[c_x-r,c_y-r,c_x+r,c_y+r]....]
         """
-
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # for opencv3
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 100, param1=120, param2=40, minRadius=5, maxRadius=40)
+        # circles= cv2.HoughCircles(gray,cv2.HOUGH_GRADIENT,1,100,param1=120,param2=40,minRadius=5,maxRadius=40)
+        # circles=cv2.HoughCircles(gray,cv2.cv.CV_HOUGH_GRADIENT,1,100,param1=120,param2=40,minRadius=1,maxRadius=40)
+        # circles=cv2.HoughCircles(gray,cv2.cv.CV_HOUGH_GRADIENT,1,100,param1=120,param2=20,minRadius=1,maxRadius=40)
         # for opencv2
-        # circles=cv2.HoughCircles(gray,cv2.cv.CV_HOUGH_GRADIENT,1,100,param1=120,param2=40,minRadius=5,maxRadius=40)
-        res_circles = []
+        # circles=cv2.HoughCircles(gray,cv2.CV_HOUGH_GRADIENT,1,100,param1=120,param2=40,minRadius=1,maxRadius=40)
+        # for opencv3
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 100, param1=120, param2=20, minRadius=1, maxRadius=160)
 
+        # print(circles)
+
+        res_circles = []
         if type(circles) == np.ndarray:
             for circle in circles[0]:
                 x = int(circle[0])
@@ -120,18 +146,86 @@ class detection():
                 res_circles.append([x, y, r])
         return res_circles
 
+    def enlarge_rects(self, rects):
+        for i in range(0, len(rects)):
+            w = rects[i][2] - rects[i][0]
+            h = rects[i][3] - rects[i][1]
+            w = w * 1.4
+            h = h * 1.4
+
+            c_x = (rects[i][0] + rects[i][2]) / 2
+            c_y = (rects[i][1] + rects[i][3]) / 2
+
+            rects[i][0] = int(round(c_x - w / 2))
+            if rects[i][0] < 0:
+                rects[i][0] = 0
+            rects[i][1] = int(round(c_y - h / 2))
+            if rects[i][1] < 0:
+                rects[i][1] = 0
+            rects[i][2] = int(round(c_x + w / 2))
+            if rects[i][2] >= 640:
+                rects[i][2] = 639
+            rects[i][3] = int(round(c_y + h / 2))
+            if rects[i][3] >= 480:
+                rects[i][3] = 479
+
+            # print rects[i]
+        return rects
+
     def ensemble(self, img):
         """
-        This function detects the signs combining the hough transform and color segmentation
-        :param img: image,opencv format
-        :return: the position of the largest sign, a 1-d list
-                format: [xmin,ymin,xmax,ymax]
+        input:image
+        output:
+        """
+        res_rects = []
+        max_index = []
+        orig_img = img.copy()
+        rects = self.seg_color(img)
+
+        if len(rects) == 0:
+            return res_rects
+        else:
+            rects = self.enlarge_rects(rects)
+            for i in range(0, len(rects)):
+                rect = rects[i]
+                xmin = rect[0]
+                ymin = rect[1]
+                xmax = rect[2]
+                ymax = rect[3]
+
+                if ymax - ymin < 300 and xmax - xmin < 300:
+                    sign_roi = orig_img[ymin:ymax, xmin:xmax, :]
+                    # print(xmin,ymin,xmax,ymax)
+                    # cv2.imshow("roi",sign_roi)
+                    # cv2.waitKey(0)
+                    circles = self.det_circle(sign_roi)
+
+                    # print(len(circles))
+
+                    if len(circles) != 0:
+                        res_rects.append(rect)
+                        max_index.append((xmax - xmin) * (ymax - ymin))
+        if len(max_index) != 0:
+            index = max_index.index(max(max_index))
+            dst_rect = res_rects[index]
+
+            return dst_rect
+        else:
+            return res_rects
+
+    def ensemble2(self, img):
+        """
+        input:image
+        output:the position of the object
+              rects:[xmin,ymin,xmax,ymax]
+              only one sign, and if detect more than one sign,
+              the sign with the largest area would be returned
+
         """
         res_rects = []
         max_index = []
         circles = self.det_circle(img)
         rects = self.seg_color(img)
-
         if len(circles) != 0 and len(rects) != 0:
             for i in range(0, len(circles)):
                 for j in range(0, len(rects)):
@@ -150,7 +244,6 @@ class detection():
                             (2 * inter_w * inter_h * 1.0) / (4 * r * r + rect_w * rect_h) - 1) < 0.3:
                         res_rects.append(rects[j])
                         max_index.append(rect_w * rect_h)
-
         if len(max_index) != 0:
             index = max_index.index(max(max_index))
             return res_rects[index]
@@ -160,12 +253,11 @@ class detection():
 
 detector = detection()
 
-im = cv2.imread("../static/signs/test.jpg")
-
-#roi = im[50:400,90:460,:]
+# im = cv2.imread("../static/signs/testu.jpg")
+im = cv2.imread("/Users/zhouyuan/hi.jpg")
 
 roi = im
 
 rects = detector.ensemble(roi)
-
+print(rects)
 detector.show_rects(roi,rects)
