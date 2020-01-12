@@ -12,6 +12,7 @@ from flask_cors import CORS
 from flask_sockets import Sockets
 
 from engine import run
+from states import states
 
 try:
     # Delete history files before restarting app
@@ -45,6 +46,7 @@ def get_maps():
 @app.route('/reset', methods=['POST'])
 def reset():
     req = request.get_json()
+    states[request.remote_addr] = None
     if ws_clients.get(request.remote_addr) is not None and not ws_clients.get(request.remote_addr).closed:
         msg = """{{
           "Event": "update_pos",
@@ -73,7 +75,8 @@ def evaluate():
         nparr = np.frombuffer(base64.b64decode(view), np.uint8)
         view2 = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
 
-        res = run(script.image_to_speed, int(req['step']), req['position'], script.log, view1, view2)
+        res = run(script.image_to_speed, int(req['step']), req['position'], script.log, request.remote_addr,
+                  view1, view2)
         pos = res["position"]
         pos = [x for x in pos]
         if ws_clients.get(request.remote_addr) is not None and not ws_clients.get(request.remote_addr).closed:
@@ -104,4 +107,5 @@ if __name__ == '__main__':
     from geventwebsocket.handler import WebSocketHandler
 
     server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
+    print("Server listening...")
     server.serve_forever()

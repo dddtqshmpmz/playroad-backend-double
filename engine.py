@@ -1,6 +1,19 @@
 import math
 import cv2
 
+from states import states
+
+
+class SceneState:
+    def __init__(self, identifier):
+        self.id = identifier
+
+    def set(self, value):
+        states[self.id] = value
+
+    def get(self):
+        return states.get(self.id)
+
 
 class Car:
     def __init__(self, initial_pos, width_of_car = 6):
@@ -16,7 +29,7 @@ class Car:
 
     def move(self, left, right):
         """
-        :param left & right: car wheels' speed
+        :param left, right: car wheels' speed
         """
         d_left = left * self.sub_step_duration
         d_right = right * self.sub_step_duration
@@ -29,7 +42,7 @@ class Car:
         self.position = (x, y, theta)
 
 
-def run(f, seconds, position, log, unity_view1, unity_view2):
+def run(f, seconds, position, log, from_ip, unity_view1, unity_view2):
     """
     Engine entry.
     :param f: students' image_to_speed function
@@ -37,6 +50,7 @@ def run(f, seconds, position, log, unity_view1, unity_view2):
     :param position: the car is stateless, so every time when we need to calculate its new position, current position
                      should be provided firstly.
     :param log: a helper variable for students' debugging
+    :param from_ip: client's ip address
     :param unity_view1: bird view
     :param unity_view2: in-car view
     :return:
@@ -44,7 +58,8 @@ def run(f, seconds, position, log, unity_view1, unity_view2):
     car = Car(position)
     pos = [0, 0, 0]
 
-    left, right = f(unity_view1, unity_view2)
+    state = SceneState(from_ip)
+    left, right = f(unity_view1, unity_view2, state)
     # cv2.imwrite("./in-car-view.jpg", unity_view2)
     for i in range(seconds * car.freq_of_call):
         for j in range(car.sub_steps_per_call):
