@@ -4,14 +4,14 @@ import numpy as np
 
 class detection():
     def __init__(self):
-        self.H_low_thresh = 110
-        self.H_high_thresh = 125
-        self.S_low_thresh = 120
-        self.V_low_thresh = 90
-        self.aspect_ratio_thresh = 1.5
-        self.use_h_only = 0
-        self.img_width = 640
-        self.img_height = 480
+        self.H_low_thresh = 115 #110
+        self.H_high_thresh = 165 # 225
+        self.S_low_thresh = 120 #120
+        self.V_low_thresh = 130 #90
+        self.aspect_ratio_thresh = 1.5 #1.5
+        self.use_h_only = 0 #0
+        self.img_width = 640 #640
+        self.img_height = 480 #480
 
     def show_circles(self, im, circles):
         """
@@ -97,29 +97,38 @@ class detection():
             label = (h > self.H_low_thresh) * (h < self.H_high_thresh)
         gray = gray * label
         gray[label] = 255
-        # cv2.imshow("gray",gray)
-        # cv2.waitKey(0)
-        element = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
-        eroded = cv2.erode(gray, element)
-        dilated = cv2.dilate(eroded, element)
-        ret, thresh = cv2.threshold(dilated, 127, 255, cv2.THRESH_BINARY)
-        # cv2.imshow("thresh",thresh)
-        # cv2.waitKey(0)
+
+        element = cv2.getStructuringElement(cv2.MORPH_CROSS, (15, 15)) # 5,5
+        #eroded = cv2.erode(gray, element)
+        dilated = cv2.dilate(gray, element)
+        ret, thresh = cv2.threshold(dilated, 127, 255, cv2.THRESH_BINARY) ##
+
         # for opencv3
         # binary,contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         # for opencv2
+
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         rects = []
 
         print(len(contours))
 
+        area=0
         for i in range(0, len(contours)):
-            rect = cv2.boundingRect(contours[i])
-            w = rect[2]
-            h = rect[3]
-            aspect_ratio = max(w, h) / (min(w, h) * 1.0)
-            if w > 10 and h > 10 and aspect_ratio < self.aspect_ratio_thresh:
-                rects.append([rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]])
+            contour_area=cv2.contourArea(contours[i])
+            if contour_area>area:
+                area=contour_area
+                rect = cv2.boundingRect(contours[i])
+                w = rect[2]
+                h = rect[3]
+                aspect_ratio = max(w, h) / (min(w, h) * 1.0)
+                if w > 50 and h > 50 and aspect_ratio < self.aspect_ratio_thresh:
+                    rects.append([rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]])
+                    '''
+                    rects[ind_rects][0]=  rects[ind_rects][0]- w*1.1
+                    rects[ind_rects][1] = rects[ind_rects][1]-h*1.1
+                    rects[ind_rects][2] = rects[ind_rects][2] +w*0.1
+                    rects[ind_rects][3] = rects[ind_rects][3] +h * 0.1'''
+
         return rects
 
     def det_circle(self, img):
@@ -152,8 +161,8 @@ class detection():
         for i in range(0, len(rects)):
             w = rects[i][2] - rects[i][0]
             h = rects[i][3] - rects[i][1]
-            w = w * 1.4
-            h = h * 1.4
+            w = w * 1.2 #1.4
+            h = h * 1.2
 
             c_x = (rects[i][0] + rects[i][2]) / 2
             c_y = (rects[i][1] + rects[i][3]) / 2
@@ -165,11 +174,11 @@ class detection():
             if rects[i][1] < 0:
                 rects[i][1] = 0
             rects[i][2] = int(round(c_x + w / 2))
-            if rects[i][2] >= 640:
-                rects[i][2] = 639
+            if rects[i][2] >= self.img_width:
+                rects[i][2] = self.img_width-1
             rects[i][3] = int(round(c_y + h / 2))
-            if rects[i][3] >= 480:
-                rects[i][3] = 479
+            if rects[i][3] >= self.img_height:
+                rects[i][3] = self.img_height-1
 
             # print rects[i]
         return rects
@@ -184,9 +193,11 @@ class detection():
         orig_img = img.copy()
         rects = self.seg_color(img)
 
+
         print(rects)
 
         if len(rects) == 0:
+
             return res_rects
         else:
             rects = self.enlarge_rects(rects)
@@ -197,18 +208,19 @@ class detection():
                 xmax = rect[2]
                 ymax = rect[3]
 
-                if ymax - ymin < 300 and xmax - xmin < 300:
+                if ymax - ymin < 150 and xmax - xmin < 150:  ## 300 300
                     sign_roi = orig_img[ymin:ymax, xmin:xmax, :]
+                    res_rects.append(rect)
+                    max_index.append((xmax - xmin) * (ymax - ymin))
+
                     # print(xmin,ymin,xmax,ymax)
                     # cv2.imshow("roi",sign_roi)
                     # cv2.waitKey(0)
+                    '''
                     circles = self.det_circle(sign_roi)
-
-                    # print(len(circles))
-
                     if len(circles) != 0:
                         res_rects.append(rect)
-                        max_index.append((xmax - xmin) * (ymax - ymin))
+                        max_index.append((xmax - xmin) * (ymax - ymin))'''
         if len(max_index) != 0:
             index = max_index.index(max(max_index))
             dst_rect = res_rects[index]
@@ -253,3 +265,4 @@ class detection():
             return res_rects[index]
         else:
             return res_rects
+

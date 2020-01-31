@@ -70,7 +70,8 @@ def evaluate():
         view = json.loads(ws_messages[request.remote_addr])["view1"]
         nparr = np.frombuffer(base64.b64decode(view), np.uint8)
         view = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
-        view1 = cv2.cvtColor(view, cv2.COLOR_BGR2GRAY)
+        view1 = view
+        #view1 = cv2.cvtColor(view, cv2.COLOR_BGR2GRAY)
         view = json.loads(ws_messages[request.remote_addr])["view2"]
         nparr = np.frombuffer(base64.b64decode(view), np.uint8)
         view2 = cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
